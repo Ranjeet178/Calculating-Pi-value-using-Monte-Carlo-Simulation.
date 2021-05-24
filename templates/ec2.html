@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-<title>First Flask App</title>
+<title>Cloud Project</title>
 <style>
  
   table, th, td {
     border: 1px solid black;
     border-collapse: collapse;
   }
- 
   th, td {
     padding: 5px;
   }
@@ -43,7 +42,7 @@
 </head>
  <body>
  <h1 style="margin-left: 500px;">Cloud Project </h1>
-<button onclick="home()" id = 'home'>Home</button>
+ <button onclick="home()" id = 'home'>Home</button>
  <button onclick="destrec()" id = 'destrec'>Reset</button>
  <button  onclick="turnOn()" id = 'butId'>history</button>
  <div id="curve_chart" style="width: 900px; height: 500px"></div>
@@ -59,7 +58,7 @@
 </script>
    <div id='tabcont' class="container">
      <div class = "row">
-     <div class="col-sm-4 ">
+     <div class="col-sm-4">
    <table style="width:100%">
     <tr>
       
@@ -75,7 +74,7 @@
     
   </table>
   </div>
-  <div class="col-sm-4 ">
+  <div class="col-sm-4">
     <table style="width:100%">
       <tr>
         
@@ -91,7 +90,7 @@
       
   </table>
 </div>
-<div class="col-sm-4 ">
+<div class="col-sm-4">
 
   <table style="width:100%">
     <tr>
@@ -113,8 +112,9 @@
    var ab = '{{actual_pi}}'
    var acpi = parseFloat(ab)
    var res = acpi;
-      var someJavaScriptVar = JSON.parse('{{ s | tojson | safe}}');
-      let result = someJavaScriptVar.map(a => a.values);
+      // var someJavaScriptVar = JSON.parse('{{ s | tojson | safe}}');
+      //console.log('sjs',someJavaScriptVar)
+      //let result = someJavaScriptVar.map(a => a.values);
       var flat_list1 = '{{ flat_list }}'
       console.log(flat_list1)
       var matchId = '{{matching}}'
@@ -149,10 +149,11 @@
       chart.draw(data, options);
     }
 
+
 const destrec=() =>{
-  var tab1 = document.getElementById('tabcont')
-  tab1.style.visibility = 'hidden'
-}
+    var tab1 = document.getElementById('tabcont')
+    tab1.style.visibility = 'hidden'
+  }
 
   // history
   const turnOn=()=>{
@@ -164,9 +165,13 @@ const destrec=() =>{
     var tab2 = document.getElementById('mytab2')
     tab2.style.visibility = 'visible'
     var matchingId = '{{matching}}'
-    var sort = '{{shot}}'
+    var sort = '{{no_shorts_1}}'
     var rate = '{{rate}}'
     var no_OfRes = '{{no_resource}}'  
+    var estimated='{{estimated}}'
+    var cost_val='{{cost_val}}'
+    console.log(cost_val)
+    console.log("sdjnksd",estimated)
     var histtit = document.getElementById('histId')
     histtit.innerHTML = 'HISTORY Detail'   
     var tbl = document.getElementById("mytab")
@@ -179,29 +184,22 @@ const destrec=() =>{
     cell2.innerHTML = sort
     cell3.innerHTML = rate
     cell4.innerHTML = no_OfRes  
-    var someJavaScriptVar = JSON.parse('{{ s | tojson | safe}}');
-    let result1 = someJavaScriptVar.map(a => a.timeing);
-    let result2 = someJavaScriptVar.map(a => a.value);
+    //var someJavaScriptVar = JSON.parse('{{ s | tojson | safe}}');
+    //let result1 = someJavaScriptVar.map(a => a.timeing);
+    //let result2 = someJavaScriptVar.map(a => a.value);
     var matId = parseInt(matchingId)
     var tbl2 = document.getElementById("mytab2")
-    var row2
-    var cell7
-    var cell8
-    for(var i=0;i<result2.length;i++) {
-    cell7=''
-    cell8=''  
-    row2 = tbl2.insertRow();
-    cell7 = row2.insertCell()
-    cell8 = row2.insertCell()
-    var newres = result2[i]
-    var newres2 = newres.slice(0,matId + 1)
-    cell7.innerHTML = newres2
-    cell8.innerHTML = result1[i]
-  }
+    var row2 = tbl2.insertRow();
+    var cell7 = row2.insertCell()
+    cell7.innerHTML = estimated
+    var cell8 = row2.insertCell()
+    cell8.innerHTML = cost_val
+    // cell8.innerHTML = result1[i]
+  
   }
   const home=()=>{
-    window.open('http://127.0.0.1:5000/')
-}
+      window.open('http://127.0.0.1:5000/')
+  }
   </script>
   <h2  id='histId'></h2>
   <table style="width:100%;visibility: hidden;" id = "mytab">

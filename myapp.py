@@ -10,8 +10,13 @@ import http.client
 import statistics
 import boto3
 import botocore
+from operator import is_not
+from functools import partial
 import paramiko
-from concurrent.futures import ThreadPoolExecutor# creates a list of values as long as the number of things we want# in parallel so we could associate an ID to each
+from paramiko import SSHClient
+from boto.manage.cmdshell import sshclient_from_instance
+
+from concurrent.futures import ThreadPoolExecutor
 results=[]
 avg= None
 values_estimates=[]
@@ -19,175 +24,153 @@ estimates_pi=[]
 flat_list1=[]
 # calling calculation functions
 
-def ec2(matching,shots,rate,no_resource):
-    # Lets create EC2 instances using Python BOTO3
+# EC2 Code
+user_data = '''#!/bin/bash
+sudo apt-get update &&
+sudo apt-get install python3 &&
+cd /home/ubuntu/ &&
+git clone https://github.com/Ranjeet178/ec2 &&
+cd ec2'''
 
-# from boto.manage.cmdshell import sshclient_from_instance
- 
-    user_data = '''#!/bin/bash
-    echo "import json
-    import math 
-    import random
-    import time
-    import flask
-    from flask import request, jsonify
+def cost_cal(s):
+    cost=[]
     
-    app = flask.Flask(__name__)
+    print("sdhjsdhfks",s)
     
+    for i in s:
+        if "errorMessage" in i:
+            print("Error from AWS")
+        else:
+            str1 = ''.join(i)
+            json_acceptable_string = str1.replace("'", "\"")
+            d = json.loads(json_acceptable_string)
+            cost.append(d['elapsed_time'])
+    return cost
 
-    @app.route('/', methods=['GET','POST'])
-    def api_all():
-        start = time.time()
-        estimate = []
-        values=[]    
-        shots = int(event[S])
-        incircle = 0
-        for i in range(1, shots+1):
-            random1 = random.uniform(-1.0, 1.0)  
-            random2 = random.uniform(-1.0, 1.0)  
-            if( ( random1*random1 + random2*random2 ) < 1 ):
-                incircle += 1
-            if i % int(event[Q]) == 0:
-                values.append([incircle,i])
-        elapsed_time = time.time() - start
-    app.run(debug=True)" >> myfile.py && python myfile.py
-    '''
-
-    def create_ec2_instance():
-        try:
-            print ("Creating EC2 instance")
-            resource_ec2 = boto3.client("ec2",region_name='us-east-1',aws_access_key_id='AKIAZAYGC72ATPOYQTS4',
-        aws_secret_access_key='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')
-            resource_ec2.run_instances(
-                ImageId="ami-0d5eff06f840b45e9",
-                MinCount=1,
-                MaxCount=1,
-                InstanceType="t2.micro",
-                UserData=user_data,
-                KeyName="coursework_1",
-            # security_groups='coursework_1'
-            )
-        except Exception as e:
-            print(e)
-
-    def describe_ec2_instance():
-        try:
-            print ("Describing EC2 instance")
-            resource_ec2 = boto3.client("ec2")
-            print(resource_ec2.describe_instances()["Reservations"][0]["Instances"][0]["InstanceId"])
-            return str(resource_ec2.describe_instances()["Reservations"][0]["Instances"][0]["InstanceId"])
-        except Exception as e:
-            print(e)
-
-    def get_public_ip(instance_id):
-        ec2_client = boto3.client("ec2", region_name="us-east-1")
-        reservations = ec2_client.describe_instances(InstanceIds=[instance_id]).get("Reservations")
-
-        for reservation in reservations:
-            for instance in reservation['Instances']:
-                print(instance.get("PublicIpAddress"))
-                
-    """
-    # rebooting the instance
-    def reboot_ec2_instance():
-        try:
-            print ("Reboot EC2 instance")
-            instance_id = describe_ec2_instance()
-            resource_ec2 = boto3.client("ec2")
-            print(resource_ec2.reboot_instances(InstanceIds=[instance_id]))
-        except Exception as e:
-            print(e)
-
-    #stoping the instance
-    def stop_ec2_instance():
-        try:
-            print ("Stop EC2 instance")
-            instance_id = describe_ec2_instance()
-            resource_ec2 = boto3.client("ec2")
-            print(resource_ec2.stop_instances(InstanceIds=[instance_id]))
-        except Exception as e:
-            print(e)
-
-
-    def start_ec2_instance():
-        try:
-            print ("Start EC2 instance")
-            instance_id = describe_ec2_instance()
-            resource_ec2 = boto3.client("ec2")
-            print(resource_ec2.start_instances(InstanceIds=[instance_id]))
-        except Exception as e:
-            print(e)
-    """
-
-    def terminate_ec2_instance():
-        try:
-            print ("Terminate EC2 instance")
-            instance_id = describe_ec2_instance()
-            resource_ec2 = boto3.client("ec2",region_name='us-east-1',aws_access_key_id='AKIAZAYGC72ATPOYQTS4',
-        aws_secret_access_key='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')
-            print(resource_ec2.terminate_instances(InstanceIds=[instance_id]))
-        except Exception as e:
-            print(e)
-
-
-    create_ec2_instance()
-
-
-    #instance_id=describe_ec2_instance()
-    #print(instance_id)
-    #public_ip=get_public_ip(instance_id)
-    #reboot_ec2_instance()
-    #stop_ec2_instance()
-    #start_ec2_instance()
-    terminate_ec2_instance()
-
-    """def execute_commands_on_linux_instances(client, commands, instance_ids):
-        resp = client.send_command(
-            DocumentName="AWS-RunShellScript", # One of AWS' preconfigured documents
-            Parameters={'commands': commands},
-            InstanceIds=instance_ids,
-        )
-        return resp
-
-    ssm_client = boto3.client("ec2", region_name="us-east-1",aws_access_key_id='AKIAZAYGC72ATPOYQTS4',
-        aws_secret_access_key='u0ivJPydJQ/arekvzyvkbvdWaGI90prQZMg9uQAX') # Need your credentials here
-    commands = ['echo "hello world"']
-    execute_commands_on_linux_instances(ssm_client, commands, instance_id)"""
-
-
-
-
-
-
-
-
-
-
-
-
-
-    """
-
-    key = paramiko.RSAKey.from_private_key_file(path/to/mykey.pem)
-    client = paramiko.SSHClient()
+def calculation_ec2(s):
+    val=[]
+   
+    print("sdhjsdhfks",s)
+    
+    for i in s:
+        if "errorMessage" in i:
+            print("Error from AWS")
+        else:
+            str1 = ''.join(i)
+            json_acceptable_string = str1.replace("'", "\"")
+            d = json.loads(json_acceptable_string)
+            val.append(d['values'])
+    return val
+def pi_values_from_ec2(host,shots,rate):
+    shot=int(shots)
+    rt=int(rate)
+    
+    print(host)
+    user="ubuntu"
+    key=paramiko.RSAKey.from_private_key_file("./Cloud_project.pem")
+    client = SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    
+    client.connect(host, username=user,pkey=key)
+    
+    stdin, stdout, stderr = client.exec_command(f'cd /home/ubuntu/ec2/ && python3 pi_estimator.py {shot} {rt}')
+    vals = stdout.readlines()[4]
+    print ("output: ", vals)
 
-    # Connect/ssh to an instance
+    return vals
+def create_ec2_instance():
     try:
-        # Here 'ubuntu' is user name and 'instance_ip' is public IP of EC2
-        client.connect(hostname=instance_ip, username="ubuntu", pkey=key)
+        print ("Creating EC2 instance")
+        resource_ec2 = boto3.client("ec2",region_name='us-east-1',aws_access_key_id="AKIA26RDFRLR2HTXT3P5",
+            aws_secret_access_key="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",)
+        resource_ec2.run_instances(
+            ImageId="ami-09e67e426f25ce0d7",
+            MinCount=1,
+            MaxCount=1,
+            InstanceType="t2.micro",
+            UserData=user_data, 
+            KeyName="Cloud_project",
+            
+        )
+        print("end of request")
+    except Exception as e:
+        print(e)
+def describe_ec2_instance():
+    instance_ids = []
+    try:
+        print ("Describing EC2 instance")
+        resource_ec2 = boto3.client("ec2")
+        for i in resource_ec2.describe_instances()["Reservations"]:
 
-        # Execute a command(cmd) after connecting/ssh to an instance
-        stdin, stdout, stderr = client.exec_command(cmd)
-        print stdout.read()
+            print(i["Instances"][0]["InstanceId"])
+            instance_ids.append(i["Instances"][0]["InstanceId"])
+        
+        print("DONE")
 
-        # close the client connection once the job is done
-        client.close()
-        break
+        
+        return instance_ids
+    except Exception as e:
+        print(e)
 
-    except Exception, e:
-        print e
-        """
+def stop_ec2_instance(instance_id):
+    try:
+        print ("Stopping EC2 instance")
+        
+        resource_ec2 = boto3.client("ec2")
+        resource_ec2.stop_instances(InstanceIds=[instance_id])
+        print(f"{instance_id} STOPPED")
+    except Exception as e:
+        print(e)
+
+def get_public_ip(instance_id):
+    ec2_client = boto3.client("ec2", region_name="us-east-1")
+    reservations = ec2_client.describe_instances(InstanceIds=[instance_id]).get("Reservations")
+
+    for reservation in reservations:
+        for instance in reservation['Instances']:
+            print(instance.get("PublicIpAddress"))
+            if instance.get("PublicIpAddress") == None:
+                continue
+            else:    
+                return instance.get("PublicIpAddress")
+
+def do_something_EC2(matching,shots,rate,no_resource):
+    for i in range(no_resource):
+       create_ec2_instance()
+    time.sleep(80)
+    instance_ids = describe_ec2_instance()
+    print(instance_ids)
+
+    instance_address = []
+
+    for instance in instance_ids:
+        
+        address = get_public_ip(instance)
+        instance_address.append(address)
+    list=[]
+    for i in instance_address:
+        if i is not None:
+            my_values = pi_values_from_ec2(i,shots,rate)
+            print(my_values)
+            list.append(my_values)
+    '''ip_list=[]
+    for i in instance_address:
+        if i is not  None:
+            ip_list.append(i)
+    print("new Ip",ip_list)
+    for i in range(len(ip_list)):
+        my_values = pi_values_from_ec2(ip_list[i],shots,rate,i)
+        print(my_values)'''
+    
+        
+ 
+
+
+    for i in instance_ids:
+        stop_ec2_instance(i)
+    return list
+
+
 def calculation(s):
     
     val=[]
@@ -251,14 +234,11 @@ def do_something(matching,shots,rate,no_resource):
     getpages(matching,shots,rate,runs)
     
  
-    #if __name__ == '__main__':
-        # start = time.time() 
-        # results = getpages() 
-    
-    for result in results: # uncomment to see results in ID order # 
-        print(result)
  
-    # print( "Elapsed Time: ", time.time() - start)
+    for result in results: 
+        print("the resulstnd sdkj",result)
+ 
+    
     return results
  
 
@@ -275,61 +255,105 @@ def home():
     
 @app.route('/<resource_type>/<no_resource>',methods=['GET','POST'])
 def ranjeet(resource_type,no_resource):
-    print("here",resource_type,no_resource)
-    if request.method == 'POST':
-        matching = request.form['Matching']
-        print(matching)
-        shots= request.form['shots']
-        shot=request.form['shots']
-        print(shot)
-        shots=int(shots)/int(no_resource)
-        print(shots)
-        rate= request.form['rate']
-        print(rate)
-        # start = time.time() 
-        flat_list=[]
-        s=do_something(matching,shots,rate,int(no_resource))
-        
-        print("Ranjeet_s",s)
-        
-        pi_values=calculation(s)
-        
-        print("pi average value",pi_values)
-        for i in pi_values:
-            values_estimates.append(json.loads(i))
-        print("list of pi values",values_estimates)
-        flat = [item for sublist in values_estimates for item in sublist]
-        for i in flat:  
-            flat_list1.append(i[0]/i[1]*4)
-        no_shorts=[]
-        circle=[]
-        reso_id=[]
-        
-        for k in flat:
-            no_shorts.append(k[1])
-            circle.append(k[0])
-            reso_id.append(k[2])
-        print("%$$%^^^%^^",no_shorts)
-        looobj = {
-            "no_short" : no_shorts,
-            "en_circle" : circle,
-            "reso_id" : reso_id
-                }
-        
-        print("SSSS*****SSS" , looobj)
-        flat_list=[]
-        for i in flat_list1:
-            if i!=0.0:
-                flat_list.append(i)
-        print("flat_list******",flat_list)
-        actual_pi=math.pi
-        print('ap',actual_pi)
-        sortlen1=len(no_shorts)
-        print('sortleeee',sortlen1)    
-        #return redirect(url_for('graph',resource_type=resource_type,no_resource=no_resource,matching=matching,shots=shots,rate=rate))
-        return render_template('graph.html',no_resource=no_resource,shots=shots,rate=rate,s=s,actual_pi = actual_pi,matching=matching,flat_list=flat_list,no_shorts=no_shorts,circle=circle,reso_id=reso_id,looobj=looobj,sortlen1 = sortlen1,shot=shot)
+    if resource_type == 'EC2':
+        if request.method == 'POST':
+            matching = request.form['Matching']
+            print(matching)
+            shots= request.form['shots']
+            shot=request.form['shots']
+            print(shot)
+            shots=int(shots)/int(no_resource)
+            print(shots)
+            rate= request.form['rate']
+            print(rate)
+            actual_pi=math.pi
+            # start = time.time() 
+            flat_list=[]
+            s=do_something_EC2(matching,shots,rate,int(no_resource))
+            print("sssssssss",s)
+            pi_values=calculation_ec2(s)
+            print("actual piisis",pi_values)
+            cost=cost_cal(s)
+            #print("ECCC@^SGS",pi_values)
+            flat = [item for sublist in pi_values for item in sublist]
+            print("Faaaat",flat)
+            for i in flat:  
+                flat_list.append(i[0]/i[1]*4)
+            print("EC@FLATLIST",flat_list)
+            no_shorts=[]
+            circle=[]
+            for k in flat:
+                no_shorts.append(k[1])
+                circle.append(k[0])
+            estimated=flat_list[-1]
+            print("jcsydjskv",estimated)
+            print("sdhksnddsfsdf",cost) 
+            cost_val = cost[-1]
+            #print("asjsadas",cost_val)
+            print("sdhkhskdf",no_shorts)
+            print("asdajsdjad",circle)
+            no_shorts_1=no_shorts[-1]
+ 
+            
+            return render_template('ec2.html',no_resource=no_resource,shots=shots,rate=rate,s=s,actual_pi = actual_pi,matching=matching,flat_list=flat_list,no_shorts=no_shorts,no_shorts_1=no_shorts_1,circle=circle,estimated=estimated,cost_val=cost_val)
+        else:
+            return render_template('ranjeet.html') 
     else:
-        return render_template('ranjeet.html') 
+        print("here",resource_type,no_resource)
+        if request.method == 'POST':
+            matching = request.form['Matching']
+            print(matching)
+            shots= request.form['shots']
+            shot=request.form['shots']
+            print(shot)
+            shots=int(shots)/int(no_resource)
+            print(shots)
+            rate= request.form['rate']
+            print(rate)
+            # start = time.time() 
+            flat_list=[]
+            s=do_something(matching,shots,rate,int(no_resource))
+            
+            print("Ranjeet_s",s)
+            
+            pi_values=calculation(s)
+            
+            print("pi average value",pi_values)
+            for i in pi_values:
+                values_estimates.append(json.loads(i))
+            print("list of pi values",values_estimates)
+            flat = [item for sublist in values_estimates for item in sublist]
+            for i in flat:  
+                flat_list1.append(i[0]/i[1]*4)
+            no_shorts=[]
+            circle=[]
+            reso_id=[]
+            
+            for k in flat:
+                no_shorts.append(k[1])
+                circle.append(k[0])
+                reso_id.append(k[2])
+            print("%$$%^^^%^^",no_shorts)
+            looobj = {
+                "no_short" : no_shorts,
+                "en_circle" : circle,
+                "reso_id" : reso_id
+                    }
+            
+            print("SSSS*****SSS" , looobj)
+            flat_list=[]
+            for i in flat_list1:
+                if i!=0.0:
+                    flat_list.append(i)
+            print("flat_list******",type(flat_list))
+            actual_pi=math.pi
+            print('ap',actual_pi)
+            sortlen1=len(no_shorts)
+            print('sortleeee',sortlen1)    
+            #return redirect(url_for('graph',resource_type=resource_type,no_resource=no_resource,matching=matching,shots=shots,rate=rate))
+            return render_template('graph.html',no_resource=no_resource,shots=shots,rate=rate,s=s,actual_pi = actual_pi,matching=matching,flat_list=flat_list,no_shorts=no_shorts,circle=circle,reso_id=reso_id,looobj=looobj,sortlen1 = sortlen1,shot=shot)
+        else:
+            return render_template('ranjeet.html') 
 
 @app.route('/graph')
 def graph():
@@ -346,7 +370,7 @@ def my_form_post():
         "output": combine
     }
     result = {str(key): value for key, value in result.items()}
-    print(result)
+    print("the results",result)
     return jsonify(result=result)
 
 @app.route('/history')

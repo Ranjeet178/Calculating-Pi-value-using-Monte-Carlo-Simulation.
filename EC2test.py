@@ -1,61 +1,76 @@
-# Lets create EC2 instances using Python BOTO3
 import boto3
 import botocore
+from operator import is_not
+from functools import partial
 import paramiko
-# from boto.manage.cmdshell import sshclient_from_instance
- 
-user_data = '''#!/bin/bash
-echo "import json
-import math 
-import random
-import time
-import flask
-from flask import request, jsonify
- 
-app = flask.Flask(__name__)
- 
+from paramiko import SSHClient
+from boto.manage.cmdshell import sshclient_from_instance
 
-@app.route('/', methods=['GET','POST'])
-def api_all():
-    start = time.time()
-    estimate = []
-    values=[]    
-    shots = int(event[S])
-    incircle = 0
-    for i in range(1, shots+1):
-        random1 = random.uniform(-1.0, 1.0)  
-        random2 = random.uniform(-1.0, 1.0)  
-        if( ( random1*random1 + random2*random2 ) < 1 ):
-            incircle += 1
-        if i % int(event[Q]) == 0:
-            values.append([incircle,i])
-    elapsed_time = time.time() - start
-app.run(debug=True)" >> myfile.py && python myfile.py
-'''
+# from boto3 import Session
+
+# session = Session()
+# credentials = session.get_credentials()
+# # Credentials are refreshable, so accessing your access key / secret key
+# # separately can lead to a race condition. Use this to get an actual matched
+# # set.
+# current_credentials = credentials.get_frozen_credentials()
+
+# # I would not recommend actually printing these. Generally unsafe.
+# print(current_credentials.access_key)
+# print(current_credentials.secret_key)
+# print(current_credentials)
+
+
+user_data = '''#!/bin/bash
+sudo apt-get update &&
+sudo apt-get install python3 &&
+cd /home/ubuntu/ &&
+git clone https://github.com/Ranjeet178/ec2 &&
+cd ec2'''
+
 
 def create_ec2_instance():
     try:
         print ("Creating EC2 instance")
-        resource_ec2 = boto3.client("ec2",region_name='us-east-1',aws_access_key_id='AKIAZAYGC72ATPOYQTS4',
-    aws_secret_access_key='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')
+        resource_ec2 = boto3.client("ec2",region_name='us-east-1',aws_access_key_id="AKIA26RDFRLR2HTXT3P5",
+            aws_secret_access_key="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",)
         resource_ec2.run_instances(
-            ImageId="ami-0d5eff06f840b45e9",
+            ImageId="ami-09e67e426f25ce0d7",#ami-0d5eff06f840b45e9
             MinCount=1,
             MaxCount=1,
             InstanceType="t2.micro",
-            UserData=user_data,
-            KeyName="coursework_1",
-           # security_groups='coursework_1'
+            UserData=user_data, 
+            KeyName="Cloud_project",
+            
         )
+        print("end of request")
     except Exception as e:
         print(e)
 
 def describe_ec2_instance():
+    instance_ids = []
     try:
         print ("Describing EC2 instance")
         resource_ec2 = boto3.client("ec2")
-        print(resource_ec2.describe_instances()["Reservations"][0]["Instances"][0]["InstanceId"])
-        return str(resource_ec2.describe_instances()["Reservations"][0]["Instances"][0]["InstanceId"])
+        for i in resource_ec2.describe_instances()["Reservations"]:
+
+            print(i["Instances"][0]["InstanceId"])
+            instance_ids.append(i["Instances"][0]["InstanceId"])
+        
+        print("DONE")
+
+        # print(resource_ec2.describe_instances()["Reservations"][0]["Instances"][0]["InstanceId"])
+        return instance_ids
+    except Exception as e:
+        print(e)
+
+def stop_ec2_instance(instance_id):
+    try:
+        print ("Stopping EC2 instance")
+        # instance_id = describe_ec2_instance()
+        resource_ec2 = boto3.client("ec2")
+        resource_ec2.stop_instances(InstanceIds=[instance_id])
+        print(f"{instance_id} STOPPED")
     except Exception as e:
         print(e)
 
@@ -66,105 +81,54 @@ def get_public_ip(instance_id):
     for reservation in reservations:
         for instance in reservation['Instances']:
             print(instance.get("PublicIpAddress"))
-            
-"""
-# rebooting the instance
-def reboot_ec2_instance():
-    try:
-        print ("Reboot EC2 instance")
-        instance_id = describe_ec2_instance()
-        resource_ec2 = boto3.client("ec2")
-        print(resource_ec2.reboot_instances(InstanceIds=[instance_id]))
-    except Exception as e:
-        print(e)
-
-#stoping the instance
-def stop_ec2_instance():
-    try:
-        print ("Stop EC2 instance")
-        instance_id = describe_ec2_instance()
-        resource_ec2 = boto3.client("ec2")
-        print(resource_ec2.stop_instances(InstanceIds=[instance_id]))
-    except Exception as e:
-        print(e)
+            if instance.get("PublicIpAddress") == None:
+                continue
+            else:    
+                return instance.get("PublicIpAddress")
 
 
-def start_ec2_instance():
-    try:
-        print ("Start EC2 instance")
-        instance_id = describe_ec2_instance()
-        resource_ec2 = boto3.client("ec2")
-        print(resource_ec2.start_instances(InstanceIds=[instance_id]))
-    except Exception as e:
-        print(e)
-"""
+def get_values_from_ec2(host):
+    
+    
+    print(host)
+    user="ubuntu"
+    key=paramiko.RSAKey.from_private_key_file("./Cloud_project.pem")
+    client = SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    
+    client.connect(host, username=user,pkey=key)
+    # client.bind(('localhost', 5000))
+    stdin, stdout, stderr = client.exec_command(f'cd /home/ubuntu/ && cd ec2/ && python3 pi_estimator.py {200000} {10000}')
+    print ("stderr: ", stderr.readlines())
 
-def terminate_ec2_instance():
-    try:
-        print ("Terminate EC2 instance")
-        instance_id = describe_ec2_instance()
-        resource_ec2 = boto3.client("ec2",region_name='us-east-1',aws_access_key_id='AKIAZAYGC72ATPOYQTS4',
-    aws_secret_access_key='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')
-        print(resource_ec2.terminate_instances(InstanceIds=[instance_id]))
-    except Exception as e:
-        print(e)
+    vals = stdout.readlines()[4]
+    print ("output: ", vals)
 
+    return vals
 
-create_ec2_instance()
+#for i in (0,3):
+    #create_ec2_instance()
 
+instance_ids = describe_ec2_instance()
+print(instance_ids)
 
-#instance_id=describe_ec2_instance()
-#print(instance_id)
-#public_ip=get_public_ip(instance_id)
-#reboot_ec2_instance()
-#stop_ec2_instance()
-#start_ec2_instance()
-terminate_ec2_instance()
+instance_ip_address = []
 
-"""def execute_commands_on_linux_instances(client, commands, instance_ids):
-    resp = client.send_command(
-        DocumentName="AWS-RunShellScript", # One of AWS' preconfigured documents
-        Parameters={'commands': commands},
-        InstanceIds=instance_ids,
-    )
-    return resp
-
-ssm_client = boto3.client("ec2", region_name="us-east-1",aws_access_key_id='AKIAZAYGC72ATPOYQTS4',
-    aws_secret_access_key='u0ivJPydJQ/arekvzyvkbvdWaGI90prQZMg9uQAX') # Need your credentials here
-commands = ['echo "hello world"']
-execute_commands_on_linux_instances(ssm_client, commands, instance_id)"""
+for instance in instance_ids:
+    
+    ip_address = get_public_ip(instance)
+    instance_ip_address.append(ip_address)
+    
 
 
+print("The IPs: ",instance_ip_address)
 
 
+for i in instance_ip_address:
+    if i is not None:
+        my_values = get_values_from_ec2(i)
+        print(my_values)
 
 
-
-
-
-
-
-
-
-"""
-
-key = paramiko.RSAKey.from_private_key_file(path/to/mykey.pem)
-client = paramiko.SSHClient()
-client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
-# Connect/ssh to an instance
-try:
-    # Here 'ubuntu' is user name and 'instance_ip' is public IP of EC2
-    client.connect(hostname=instance_ip, username="ubuntu", pkey=key)
-
-    # Execute a command(cmd) after connecting/ssh to an instance
-    stdin, stdout, stderr = client.exec_command(cmd)
-    print stdout.read()
-
-    # close the client connection once the job is done
-    client.close()
-    break
-
-except Exception, e:
-    print e
-    """
+#for i in instance_ids:
+    #stop_ec2_instance(i)
